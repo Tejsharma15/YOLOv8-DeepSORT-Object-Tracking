@@ -25,6 +25,8 @@ data_deque = {}
 
 deepsort = None
 
+object_counter = {}
+line = [(100, 500), (2150, 500)]
 def init_tracker():
     global deepsort
     cfg_deep = get_config()
@@ -47,19 +49,6 @@ def xyxy_to_xywh(*xyxy):
     w = bbox_w
     h = bbox_h
     return x_c, y_c, w, h
-
-def xyxy_to_tlwh(bbox_xyxy):
-    tlwh_bboxs = []
-    for i, box in enumerate(bbox_xyxy):
-        x1, y1, x2, y2 = [int(i) for i in box]
-        top = x1
-        left = y1
-        w = int(x2 - x1)
-        h = int(y2 - y1)
-        tlwh_obj = [top, left, w, h]
-        tlwh_bboxs.append(tlwh_obj)
-    return tlwh_bboxs
-
 def compute_color_for_labels(label):
     """
     Simple function that adds fixed color depending on the class
@@ -121,9 +110,15 @@ def UI_box(x, img, color=None, label=None, line_thickness=None):
         cv2.putText(img, label, (c1[0], c1[1] - 2), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
 
 
+def intersect(A,B,C,D):
+    return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
+
+def ccw(A,B,C):
+    return (C[1]-A[1]) * (B[0]-A[0]) > (B[1]-A[1]) * (C[0]-A[0])
+
 
 def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
-    #cv2.line(img, line[0], line[1], (46,162,112), 3)
+    cv2.line(img, line[0], line[1], (46,162,112), 3)
 
     height, width, _ = img.shape
     # remove tracked point from buffer if object is lost
@@ -153,16 +148,27 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # add center to buffer
         data_deque[id].appendleft(center)
+        if len(data_deque[id]) >= 2:
+          direction = get_direction(data_deque[id][0], data_deque[id][1])
+          if intersect(data_deque[id][0], data_deque[id][1], line[0], line[1]):
+              cv2.line(img, line[0], line[1], (255, 255, 255), 3)
+              if obj_name not in object_counter:
+                  object_counter[obj_name] = 1
+              else:
+                  object_counter[obj_name] += 1
         UI_box(box, img, label=label, color=color, line_thickness=2)
-        # draw trail
-        for i in range(1, len(data_deque[id])):
-            # check if on buffer value is none
-            if data_deque[id][i - 1] is None or data_deque[id][i] is None:
-                continue
-            # generate dynamic thickness of trails
-            thickness = int(np.sqrt(64 / float(i + i)) * 1.5)
-            # draw trails
-            cv2.line(img, data_deque[id][i - 1], data_deque[id][i], color, thickness)
+
+    
+    #4. Display Count in top right corner
+
+        for idx, (key, value) in enumerate(object_counter.items()):
+            if(key == 'car')
+                cnt_str1 = str(key) + ":" +str(value)
+                cv2.line(img, (20,25), (500,25), [85,45,255], 40)
+                cv2.putText(img, f'Numbers of Vehicles Leaving', (11, 35), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)    
+                cv2.line(img, (20,65+ (idx*40)), (127,65+ (idx*40)), [85,45,255], 30)
+                cv2.putText(img, cnt_str1, (11, 75+ (idx*40)), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)
+        
     return img
 
 
